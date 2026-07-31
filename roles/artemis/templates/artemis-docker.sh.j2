@@ -35,7 +35,7 @@ function update_artemis_checkout {
             echo "Failed to remove ARTEMIS_REPO_DIR='$ARTEMIS_REPO_DIR' before cloning branch '$pr_branch'" 1>&2
             return 1
         fi
-        if ! git clone --depth 1 --branch "$pr_branch" https://github.com/ls1intum/Artemis.git "$ARTEMIS_REPO_DIR"; then
+        if ! git clone --depth 1 --branch "$pr_branch" https://github.com/nschmitz-00/Artemis.git "$ARTEMIS_REPO_DIR"; then
             echo "Failed to clone branch '$pr_branch' into ARTEMIS_REPO_DIR='$ARTEMIS_REPO_DIR'" 1>&2
             rm -rf "$ARTEMIS_REPO_DIR"
             return 1
