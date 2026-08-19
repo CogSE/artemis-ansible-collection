@@ -3,6 +3,7 @@
 
 - name: Restart docker compose artemis
   become: true
+  become_user: "{{ artemis_user_name }}"
   shell: |
     ./artemis-docker.sh restart {{ artemis_build_version }} {{ artemis_branch }}
   args:
@@ -11,6 +12,7 @@
 
 - name: Start docker compose artemis
   become: true
+  become_user: "{{ artemis_user_name }}"
   command: ./artemis-docker.sh start {{ artemis_build_version }} {{ artemis_branch }}
   args:
     chdir: "{{ artemis_working_directory }}"
