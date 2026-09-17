@@ -2,29 +2,66 @@
 
 spring:
 {% if artemis_computed_is_core_node %}
+{% if artemis_oidc is defined and artemis_oidc.enabled | default(false) %}
+  security:
+    oauth2:
+      client:
+        registration:
+          oidc:
+            client-id: {{ artemis_oidc.client_id | quote }}
+            client-secret: {{ artemis_oidc.client_secret | quote }}
+            scope:
+              - openid
+              - profile
+              - email
+        provider:
+          oidc:
+{% if artemis_oidc.issuer_uri | default('') | length > 0 %}
+            issuer-uri: {{ artemis_oidc.issuer_uri | quote }}
+{% endif %}
+{% if artemis_oidc.authorization_uri | default('') | length > 0 %}
+            authorization-uri: {{ artemis_oidc.authorization_uri | quote }}
+{% endif %}
+{% if artemis_oidc.token_uri | default('') | length > 0 %}
+            token-uri: {{ artemis_oidc.token_uri | quote }}
+{% endif %}
+{% if artemis_oidc.user_info_uri | default('') | length > 0 %}
+            user-info-uri: {{ artemis_oidc.user_info_uri | quote }}
+{% endif %}
+{% if artemis_oidc.jwk_set_uri | default('') | length > 0 %}
+            jwk-set-uri: {{ artemis_oidc.jwk_set_uri | quote }}
+{% endif %}
+{% endif %}
   datasource:
     type: com.zaxxer.hikari.HikariDataSource
-    url: jdbc:{{ artemis_database_type }}://{{ artemis_database_host }}:{{ artemis_database_port }}/{{ artemis_database_dbname }}?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=utf8&allowPublicKeyRetrieval=true&useSSL=false&useLegacyDatetimeCode=false&serverTimezone=UTC
+    url: jdbc:postgresql://{{ artemis_database_host }}:{{ artemis_database_port }}/{{ artemis_database_dbname }}?sslmode=disable
     username: {{ artemis_database_username }}
     password: {{ artemis_database_password }}
     hikari:
       poolName: Hikari
       auto-commit: false
-      maximumPoolSize: 100
+      # 100 per node against a database with a handful of cores is far more than it can serve at once. Three nodes
+      # held 301 connections open on staging, where the database has 4 CPUs, so most of them could only queue. A pool
+      # is a queue either way; keeping it at the database rather than in front of it just adds context switching and,
+      # as below, multiplies the prepared statement footprint.
+      maximumPoolSize: {{ artemis_database_max_pool_size | default(30) }}
       data-source-properties:
         cachePrepStmts: true
-        prepStmtCacheSize: 250
+        # The cache is per connection and holds this many statements. Artemis issues 368 distinct statements, so a
+        # 250 entry cache evicts constantly and the driver re-parses on every miss: profiling found 16.8% of node CPU
+        # in the driver's SQL string parser, and the server saw one prepare for every 8.7 executes. 400 covers the
+        # whole set with room to grow.
+        prepStmtCacheSize: {{ artemis_database_prep_stmt_cache_size | default(400) }}
+        # The longest statement Artemis generates is 1751 characters, so this bound is not reached.
         prepStmtCacheSqlLimit: 2048
         useServerPrepStmts: true
   jpa:
     # Hibernate auto-detects the dialect from JDBC DatabaseMetaData by default. Artemis disables that probe in
     # production (hibernate.boot.allow_jdbc_metadata_access=false) to speed up startup, so the dialect must be set
-    # explicitly. Derive it from the configured database type (MySQL support is being phased out).
-    database: {{ 'MYSQL' if artemis_database_type == 'mysql' else ('POSTGRESQL' if artemis_database_type == 'postgresql' else artemis_database_type | upper) }}
+    # explicitly.
+    database: postgresql
     hibernate:
       connection:
-        charSet: {{ artemis_database_encoding }}
-        characterEncoding: {{ artemis_database_encoding }}
         useUnicode: true
 {% if is_multinode_install and broker is defined %}
   websocket:
@@ -35,14 +72,14 @@ spring:
 {% endif %}
 {% endif %}
 
-{% if redis is defined and redis is not none %}
+{% if valkey is defined and valkey is not none %}
   data:
     redis:
-      host: {{ redis.host }}
-      port: {{ redis.port }}
-      username: {{ redis.username }}
-      password: {{ redis.password }}
-      client-name: {{ artemis_redis_client_name }}
+      host: {{ valkey.host }}
+      port: {{ valkey.port }}
+      username: {{ valkey.username }}
+      password: {{ valkey.password }}
+      client-name: {{ artemis_valkey_client_name }}
 {% endif %}
 
 {% if is_multinode_install and hazelcast_address is defined %}
@@ -143,13 +180,37 @@ artemis:
 {% if artemis_rate_limit is defined and artemis_rate_limit is not none %}
   rate-limiting:
     enabled: true
-    account-management-rpm: {{ artemis_rate_limit.account_management_rpm }}
-    authentication-rpm: {{ artemis_rate_limit.authentication_rpm }}
+    # Artemis binds these as RateLimitingProperties.accountManagementRequestsPerMinute and
+    # .authenticationRequestsPerMinute. The short "-rpm" spellings used here before bound to nothing at
+    # all, in Artemis 10 and in 9.9.1 alike, so a server silently ran on the built-in defaults whatever
+    # these were set to.
+    account-management-requests-per-minute: {{ artemis_rate_limit.account_management_rpm }}
+    authentication-requests-per-minute: {{ artemis_rate_limit.authentication_rpm }}
+{% if artemis_rate_limit.exempt_addresses is defined and artemis_rate_limit.exempt_addresses %}
+    # Addresses that consume no tokens at all, rather than getting a larger budget. The limits are per
+    # client address, which is the right shape for one abusive client and the wrong shape for a load
+    # generator: it drives a whole cohort of logins from a single host and would be throttled within
+    # seconds, so the run would measure the limiter instead of Artemis. Single addresses or CIDR ranges.
+    exempt-addresses:
+{% for address in artemis_rate_limit.exempt_addresses %}
+      - "{{ address }}"
+{% endfor %}
+{% endif %}
 {% endif %}
   user-management:
 {% if ldap.url is defined and ldap.url is not none%}
     use-external: true
 {% else %}
+{% if artemis_oidc is defined and artemis_oidc.enabled | default(false) %}
+    oidc:
+      enabled: true
+      mappings:
+        username: {{ (artemis_oidc.mappings | default({})).username | default('preferred_username') | to_json }}
+        matriculation-number: {{ (artemis_oidc.mappings | default({})).matriculation_number | default('matriculation_number') | to_json }}
+        first-name: {{ (artemis_oidc.mappings | default({})).first_name | default('given_name') | to_json }}
+        last-name: {{ (artemis_oidc.mappings | default({})).last_name | default('family_name') | to_json }}
+        email: {{ (artemis_oidc.mappings | default({})).email | default('email') | to_json }}
+{% endif %}
     use-external: false
 {% endif %}
 {% if artemis_passkey_enabled %}
@@ -206,10 +267,6 @@ artemis:
 {% if version_control.localvc.use_version_control_access_token is defined %}
     use-version-control-access-token: {{ version_control.localvc.use_version_control_access_token | lower }}
 {% endif %}
-{% if artemis_computed_is_core_node or (version_control.localvc.build_agent_git_credentials is not defined and version_control.localvc.build_agent_use_ssh is not defined) %}
-    user: {{ artemis_internal_admin_user }}
-    password: {{ artemis_internal_admin_password }}
-{% endif %}
 {% if version_control.localvc.build_agent_git_credentials is defined %}
     build-agent-git-username: {{ version_control.localvc.build_agent_git_credentials.user }}
     build-agent-git-password: {{ version_control.localvc.build_agent_git_credentials.password }}
@@ -225,6 +282,13 @@ artemis:
 {% endif %}
 {% if version_control.localvc.ssh_url is defined %}
     ssh-template-clone-url: {{ version_control.localvc.ssh_url }}
+{% endif %}
+{% if version_control.localvc.ssh_proxy_protocol_trusted_sources | default([], true) | length > 0 %}
+    ssh-proxy-protocol:
+      trusted-sources:
+{% for trusted_source in version_control.localvc.ssh_proxy_protocol_trusted_sources %}
+        - "{{ trusted_source }}"
+{% endfor %}
 {% endif %}
     repository-authentication-mechanisms: {{ version_control.localvc.repository_authentication_mechanisms | default("token,ssh,password") }}
 {% endif %}
@@ -254,8 +318,23 @@ artemis:
 {% if continuous_integration.localci is defined %}
   continuous-integration:
     artemis-authentication-token-value: "demo"
+{% if continuous_integration.localci.build_agent_network is defined and continuous_integration.localci.build_agent_network is not none %}
+    build-agent-network:
+{% if continuous_integration.localci.build_agent_network.allowed_ranges is defined and continuous_integration.localci.build_agent_network.allowed_ranges | length > 0 %}
+      allowed-ranges:
+{% for allowed_range in continuous_integration.localci.build_agent_network.allowed_ranges %}
+        - "{{ allowed_range }}"
+{% endfor %}
+{% endif %}
+{% if continuous_integration.localci.build_agent_network.trusted_proxies is defined and continuous_integration.localci.build_agent_network.trusted_proxies | length > 0 %}
+      trusted-proxies:
+{% for trusted_proxy in continuous_integration.localci.build_agent_network.trusted_proxies %}
+        - "{{ trusted_proxy }}"
+{% endfor %}
+{% endif %}
+{% endif %}
     specify-concurrent-builds: {{ (continuous_integration.localci.concurrent_build_size is defined) | lower }}
-{% if redis is defined and redis is not none %}
+{% if valkey is defined and valkey is not none %}
     data-store: "Redis"
 {% endif %}
 {% if continuous_integration.localci.concurrent_build_size is defined %}
@@ -289,6 +368,10 @@ artemis:
     email: {{ artemis_email }}
 
 {% if artemis_computed_is_core_node %}
+
+  programming:
+    maven-central-mirror-url: {{ artemis_maven_mirror_url }}
+
 {% if lti is defined %}
   lti:
     enabled: true
@@ -498,6 +581,10 @@ info:
 {% endif %}
   textAssessmentAnalyticsEnabled: true
   localLLMDeploymentEnabled: {{ artemis_local_llm_deployment_enabled | lower }}
+{% if artemis_oidc is defined and artemis_oidc.enabled | default(false) %}
+  oidc:
+    buttonLabel: {{ artemis_oidc.button_label | default('TUM Login') | quote }}
+{% endif %}
   sentry:
 {% if sentry.dsn | default('') | length %}
     dsn: {{ sentry.dsn | quote }}
