@@ -353,6 +353,9 @@ artemis:
         https-proxy: {{ continuous_integration.localci.proxy.https_proxy }}
         no-proxy: {{ continuous_integration.localci.proxy.no_proxy }}
 {% endif %}
+{% if continuous_integration.localci.docker_connection_uri is defined %}
+    docker-connection-uri: {{ continuous_integration.localci.docker_connection_uri }}
+{% endif %}
 {% if continuous_integration.localci.image_cleanup is defined %}
     image-cleanup:
       enabled: true
