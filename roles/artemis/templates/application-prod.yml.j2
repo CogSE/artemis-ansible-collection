@@ -126,6 +126,7 @@ spring:
     protocol: {{ mail.protocol }}
     tls: {{ mail.tls | default(true) | to_json }}
     properties.mail.smtp:
+      localhost: {{ mail.helo }}
       auth: {{ mail.smtp_auth | default(true) | to_json }}
       ssl:
         trust: {{ mail.ssl_trust }}
