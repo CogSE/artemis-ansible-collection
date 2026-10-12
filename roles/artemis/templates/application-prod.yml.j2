@@ -369,13 +369,13 @@ artemis:
         short-name: {{ node_short_name }}
         display-name: {{ node_display_name }}
 {% endif %}
-{% if artemis.continuous_integration.localci.build_timeout_seconds is defined %}
+{% if continuous_integration.localci.build_timeout_seconds is defined %}
     build-timeout-seconds:
-{% if artemis.continuous_integration.localci.build_timeout_seconds.min is defined %}    
-      min: {{ artemis.continuous_integration.localci.build_timeout_seconds.min }}
+{% if continuous_integration.localci.build_timeout_seconds.min is defined %}    
+      min: {{ continuous_integration.localci.build_timeout_seconds.min }}
 {% endif %}
-{% if artemis.continuous_integration.localci.build_timeout_seconds.max is defined %}
-      max: {{ artemis.continuous_integration.localci.build_timeout_seconds.max }}
+{% if continuous_integration.localci.build_timeout_seconds.max is defined %}
+      max: {{ continuous_integration.localci.build_timeout_seconds.max }}
 {% endif %}
 {% endif %}
 {% endif %}
