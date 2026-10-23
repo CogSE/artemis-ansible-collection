@@ -213,6 +213,14 @@ mail:
 
 - `artemis_notification_email` overrides the sender address of notification emails. Defaults to `<local-part>+notification@<domain>` derived from `artemis_email` (subaddressing); set it explicitly if your mail server does not support subaddressing.
 
+Upload size limits (only written when defined, core nodes only):
+```
+spring_servlet_multipart:
+  max_file_size: 200MB
+  max_request_size: 200MB
+```
+Rendered as `spring.servlet.multipart.max-file-size` and `spring.servlet.multipart.max-request-size`. Note that the proxy role caps request bodies with nginx `client_max_body_size` (128M for most routes), which applies first.
+
 LTI configuration:
 ```
 lti:

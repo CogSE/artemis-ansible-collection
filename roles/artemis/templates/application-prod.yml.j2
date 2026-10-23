@@ -132,6 +132,17 @@ spring:
       starttls:
         enable: {{ mail.smtp_starttls_enable | default(true) | to_json }}
 {% endif %}
+
+{% if spring_servlet_multipart is defined and spring_servlet_multipart is not none %}
+  servlet:
+    multipart:
+{% if spring_servlet_multipart.max_file_size is defined %}
+      max-file-size: {{ spring_servlet_multipart.max_file_size }}
+{% endif %}
+{% if spring_servlet_multipart.max_request_size is defined %}
+      max-request-size: {{ spring_servlet_multipart.max_request_size }}
+{% endif %}
+{% endif %}
 {% else %}
   # Nothing is written for a build agent. Liquibase, Hibernate, the DataSource and the related metrics
   # auto-configurations are all turned off by the WAR-bundled config/application-buildagent.yml, which is
