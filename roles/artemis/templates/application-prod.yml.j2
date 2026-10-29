@@ -335,7 +335,7 @@ artemis:
 
 {% if continuous_integration.localci is defined %}
 {% set localci_network = continuous_integration.localci.build_agent_network | default(none) %}
-{% if artemis_computed_is_build_agent | bool or localci_network is not none or continuous_integration.localci.proxy is defined or continuous_integration.localci.image_cleanup is defined %}
+{% if artemis_computed_is_build_agent | bool or localci_network is not none or continuous_integration.localci.proxy is defined or continuous_integration.localci.image_cleanup is defined or continuous_integration.localci.build_timeout_seconds is defined %}
   continuous-integration:
 {% if localci_network is not none %}
     build-agent-network:
