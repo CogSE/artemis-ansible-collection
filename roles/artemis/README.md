@@ -122,6 +122,15 @@ continuous_integration:
     image_cleanup:
       expiry_days: 3
       schedule_time: "0 0 4 * * *"
+    # Optional. Default resources of every build container (Artemis defaults shown). Unset keys keep the Artemis default.
+    docker_flags:
+      cpus: 2
+      memory: "2g"
+      memory_swap: "2g"
+      pids_limit: 1000
+    # Optional. Upper bound for the CPU count an exercise may request. 0 means unlimited.
+    container_flags_limit:
+      max_cpu_count: 4
     # Optional. Bounds which hosts may act as a build agent, and which reverse proxies may be believed when
     # resolving the client of a git request. An empty allowed_ranges means no restriction.
     build_agent_network:

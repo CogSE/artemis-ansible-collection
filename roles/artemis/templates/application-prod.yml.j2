@@ -335,7 +335,7 @@ artemis:
 
 {% if continuous_integration.localci is defined %}
 {% set localci_network = continuous_integration.localci.build_agent_network | default(none) %}
-{% if artemis_computed_is_build_agent | bool or localci_network is not none or continuous_integration.localci.proxy is defined or continuous_integration.localci.image_cleanup is defined or continuous_integration.localci.build_timeout_seconds is defined %}
+{% if artemis_computed_is_build_agent | bool or localci_network is not none or continuous_integration.localci.proxy is defined or continuous_integration.localci.image_cleanup is defined or continuous_integration.localci.build_timeout_seconds is defined or continuous_integration.localci.docker_flags is defined or continuous_integration.localci.container_flags_limit is defined %}
   continuous-integration:
 {% if localci_network is not none %}
     build-agent-network:
@@ -388,6 +388,24 @@ artemis:
 {% if continuous_integration.localci.build_timeout_seconds.max is defined %}
       max: {{ continuous_integration.localci.build_timeout_seconds.max }}
 {% endif %}
+{% endif %}
+{% if continuous_integration.localci.docker_flags is defined %}
+{% set docker_flags = continuous_integration.localci.docker_flags %}
+    build:
+      # Artemis replaces this list as a whole, so all four flags are always written.
+      default-docker-flags:
+        - flag: --cpus
+          value: {{ docker_flags.cpus | default(2) }}
+        - flag: --memory
+          value: {{ docker_flags.memory | default('2g') }}
+        - flag: --memory-swap
+          value: {{ docker_flags.memory_swap | default('2g') }}
+        - flag: --pids-limit
+          value: {{ docker_flags.pids_limit | default(1000) }}
+{% endif %}
+{% if continuous_integration.localci.container_flags_limit.max_cpu_count is defined %}
+    container-flags-limit:
+      max-cpu-count: {{ continuous_integration.localci.container_flags_limit.max_cpu_count }}
 {% endif %}
 {% endif %}
 {% endif %}
