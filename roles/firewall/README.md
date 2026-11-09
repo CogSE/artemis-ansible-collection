@@ -11,6 +11,7 @@ To configure the role, you need to set the required variables in your Ansible pl
 - `monitoring_host_ipv4`: The IPv4 address of the monitoring service.
 - `monitoring_host_ipv6`: The IPv6 address of the monitoring service.
 - `firewall_hostgroup`: The firewall rule set to be applied. Can be 'registry', 'nodes', 'proxy' or left blank for default rules.
+- `firewall_extra_tcp_ports` (optional, default `[]`): Additional TCP ports opened to everyone in any rule set.
 
 Default variables can be found in the `defaults/main.yml` file.
 
