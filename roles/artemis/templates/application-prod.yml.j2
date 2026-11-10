@@ -403,9 +403,16 @@ artemis:
         - flag: --pids-limit
           value: {{ docker_flags.pids_limit | default(1000) }}
 {% endif %}
-{% if continuous_integration.localci.container_flags_limit.max_cpu_count is defined %}
+{% set container_flags_limit = continuous_integration.localci.container_flags_limit | default({}) %}
+{% if container_flags_limit.max_cpu_count is defined or container_flags_limit.allowed_custom_networks is defined %}
     container-flags-limit:
-      max-cpu-count: {{ continuous_integration.localci.container_flags_limit.max_cpu_count }}
+{% if container_flags_limit.max_cpu_count is defined %}
+      max-cpu-count: {{ container_flags_limit.max_cpu_count }}
+{% endif %}
+{% if container_flags_limit.allowed_custom_networks is defined %}
+      # Read with @Value into a List, which takes a comma-separated string but not a YAML list.
+      allowed-custom-networks: "{{ container_flags_limit.allowed_custom_networks | join(',') }}"
+{% endif %}
 {% endif %}
 {% endif %}
 {% endif %}

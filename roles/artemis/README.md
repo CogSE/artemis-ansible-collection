@@ -131,6 +131,8 @@ continuous_integration:
     # Optional. Upper bound for the CPU count an exercise may request. 0 means unlimited.
     container_flags_limit:
       max_cpu_count: 4
+      # Optional. Networks an exercise may select under "Use custom network". Artemis default: ["none"].
+      allowed_custom_networks: ["none"]
     # Optional. Bounds which hosts may act as a build agent, and which reverse proxies may be believed when
     # resolving the client of a git request. An empty allowed_ranges means no restriction.
     build_agent_network:
