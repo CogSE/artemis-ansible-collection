@@ -297,6 +297,11 @@ artemis_passkey_require_for_administrator_features: false
 #    image_cleanup:
 #      expiry_days: 3
 #      schedule_time: "0 0 4 * * *"
+# #  Optional. Removes build containers left behind longer than expiry_minutes, checked every schedule_minutes.
+# #  Unset keys keep the Artemis default.
+#    container_cleanup:
+#      expiry_minutes: 5
+#      schedule_minutes: 60
 # #  Optional. Default resources of every build container (Artemis defaults shown). Unset keys keep the Artemis default.
 #    docker_flags:
 #      cpus: 2
