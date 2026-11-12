@@ -297,6 +297,8 @@ artemis_passkey_require_for_administrator_features: false
 #    image_cleanup:
 #      expiry_days: 3
 #      schedule_time: "0 0 4 * * *"
+# #  Optional. Mount options of the tmpfs in every build container, e.g. "rw,exec,size=2g".
+#    build_container_tmpfs_options: "rw,exec,size=2g"
 # #  Optional. Removes build containers left behind longer than expiry_minutes, checked every schedule_minutes.
 # #  Unset keys keep the Artemis default.
 #    container_cleanup:
